@@ -11,6 +11,7 @@ from scipy.sparse import hstack,coo_matrix,vstack
 import pickle
 import re
 import datetime
+import math
 from sklearn.metrics import f1_score
 import warnings
 warnings.filterwarnings('ignore')
@@ -201,6 +202,21 @@ def w2v_vectorizer(text,model):
         text_w2v.append(vector)
     return text_w2v
 
+def is_number(n):
+    try:
+        float(n)
+    except ValueError:
+        return False
+    return True
+
+def check_zip_len(n):
+    if(int(math.log10(n)+1)==5):
+        return True
+    return False
+
+def zipnumeric(n):
+    return str(n).isnumeric()
+
 @app.route('/', methods=["GET"])
 def start():
     return render_template('index.html')
@@ -211,36 +227,74 @@ def upload_file():
 
 @app.route('/uploader', methods = ["POST"])
 def uploaded_file():
-    f = request.files['file']
-    x=pd.read_csv(f)
-    x["review_verified"] = x["order_delivered_customer_date"].isnull().apply(is_review_verified)
-    x['order_delivered_customer_date'] = np.where(x['order_delivered_customer_date']==' ',
-                                                  x['order_estimated_delivery_date'], x['order_delivered_customer_date'])
-    x["order_purchase_timestamp"] = x["order_purchase_timestamp"].apply(convert_to_datetime)
-    x["order_delivered_customer_date"] = x["order_delivered_customer_date"].apply(convert_to_datetime)
-    x["order_estimated_delivery_date"] = x["order_estimated_delivery_date"].apply(convert_to_datetime)
-    x["shipping_days"] = x["order_delivered_customer_date"] - x["order_purchase_timestamp"]
-    x["shipping_days"] = x["shipping_days"].apply(convert_to_days)
-    x["eta_in_days"] = x["order_estimated_delivery_date"] - x["order_purchase_timestamp"]
-    x["eta_in_days"] = x["eta_in_days"].apply(convert_to_days)
-    x["early_or_late"] = x["eta_in_days"] - x["shipping_days"]
-    x["early_or_late"] = x["early_or_late"].apply(is_early_or_late)
-    x = x.drop(['order_delivered_customer_date','order_estimated_delivery_date',
-              'order_purchase_timestamp','eta_in_days'],axis = 1)
-    x["review_comment_message"] = x["review_comment_message"].apply(func_null_review)
-    x["review_length"] = x["review_comment_message"].apply(calc_review_length)
-    x["has_num"] = x["review_comment_message"].apply(review_has_number)
-    x["has_negative_word"] = x["review_comment_message"].apply(review_has_negative_word)
-    data_standardized = preprocessing_without_text_standardization(x)
-    text_data_preprocessed = text_preprocessing(x["review_comment_message"])
-    #w2v
-    text_w2v = w2v_vectorizer(text_data_preprocessed,w2v_model)
-    final_data = hstack((data_standardized,text_w2v)).tocsr()
-    #model predict
-    y_pred = clf.predict(final_data)
-    #y_pred=y_pred.tolist()
-    y_pred=['Positive' if i==1 else 'Negative' for i in y_pred]
-    return jsonify({'Predicted Values': y_pred})
+    try:
+
+        f = request.files['file']
+        try: 
+            x=pd.read_csv(f)
+        except:
+            return render_template('incorrect.html')
+
+        if(x['price'].apply(is_number).all()==False):
+            return render_template('price_incorrect.html')
+        elif((x['price'] < 0).any() or ((x['price']).isnull().any()==True)):
+            return render_template('price_incorrect.html')
+        if(x['freight_value'].apply(is_number).all()==False):
+            return render_template('freight_incorrect.html')
+        elif((x['freight_value'] < 0).any() or ((x['freight_value']).isnull().any()==True)):
+            return render_template('freight_incorrect.html') 
+        if(x['payment_value'].apply(is_number).all()==False):
+            return render_template('payment_incorrect.html')
+        elif((x['payment_value'] < 0).any() or ((x['payment_value']).isnull().any()==True)):
+            return render_template('payment_incorrect.html') 
+        #print((x['seller_zip_code_prefix']).apply(zipnumeric).any())
+        if((x['seller_zip_code_prefix']).isnull().any()==True):
+            return render_template('zip_incorrect.html')
+        elif((x['seller_zip_code_prefix']).apply(zipnumeric).all()==False):
+            return render_template('zip_incorrect.html')
+        elif((x['seller_zip_code_prefix'] < 0).any() or ((x['seller_zip_code_prefix']).apply(check_zip_len).all()==False)):
+            return render_template('zip_incorrect.html') 
+
+        x["review_verified"] = x["order_delivered_customer_date"].isnull().apply(is_review_verified)
+        x['order_delivered_customer_date'] = np.where(x['order_delivered_customer_date']==' ',
+                                                      x['order_estimated_delivery_date'], x['order_delivered_customer_date'])
+        try:
+            x["order_purchase_timestamp"] = x["order_purchase_timestamp"].apply(convert_to_datetime)
+            x["order_delivered_customer_date"] = x["order_delivered_customer_date"].apply(convert_to_datetime)
+            x["order_estimated_delivery_date"] = x["order_estimated_delivery_date"].apply(convert_to_datetime)
+        except:
+            return render_template('date_format.html')
+        date_today = datetime.date.today()
+        if((x['order_purchase_timestamp']>date_today).any() or (x['order_delivered_customer_date']>date_today).any()):
+            return render_template('date_future.html')
+
+        #if(x[order_purchase_timestamp])
+        x["shipping_days"] = x["order_delivered_customer_date"] - x["order_purchase_timestamp"]
+        x["shipping_days"] = x["shipping_days"].apply(convert_to_days)
+        x["eta_in_days"] = x["order_estimated_delivery_date"] - x["order_purchase_timestamp"]
+        x["eta_in_days"] = x["eta_in_days"].apply(convert_to_days)
+        if((x['shipping_days'] < 0).any() or (x['eta_in_days'] < 0).any()):
+            return render_template('date_condition.html')
+        x["early_or_late"] = x["eta_in_days"] - x["shipping_days"]
+        x["early_or_late"] = x["early_or_late"].apply(is_early_or_late)
+        x = x.drop(['order_delivered_customer_date','order_estimated_delivery_date',
+                  'order_purchase_timestamp','eta_in_days'],axis = 1)
+        x["review_comment_message"] = x["review_comment_message"].apply(func_null_review)
+        x["review_length"] = x["review_comment_message"].apply(calc_review_length)
+        x["has_num"] = x["review_comment_message"].apply(review_has_number)
+        x["has_negative_word"] = x["review_comment_message"].apply(review_has_negative_word)
+        data_standardized = preprocessing_without_text_standardization(x)
+        text_data_preprocessed = text_preprocessing(x["review_comment_message"])
+        #w2v
+        text_w2v = w2v_vectorizer(text_data_preprocessed,w2v_model)
+        final_data = hstack((data_standardized,text_w2v)).tocsr()
+        #model predict
+        y_pred = clf.predict(final_data)
+        #y_pred=y_pred.tolist()
+        y_pred=['Positive' if i==1 else 'Negative' for i in y_pred]
+        return jsonify({'Predicted Values': y_pred})
+    except KeyError:
+        return render_template('text_incorrect.html')
 
 @app.route('/predict', methods=['POST'])
 def function1():
@@ -250,17 +304,21 @@ def function1():
             "review_comment_message","order_delivered_customer_date",
             "order_purchase_timestamp","order_estimated_delivery_date"]]
     x["review_verified"] = x["order_delivered_customer_date"].isnull().apply(is_review_verified)
-    print(x['order_delivered_customer_date'].iloc[0])
+    #print(x['order_delivered_customer_date'].iloc[0])
+    
     x['order_delivered_customer_date'] = np.where(x['order_delivered_customer_date']=='',
                                                   x['order_estimated_delivery_date'], x['order_delivered_customer_date'])
     
     x["order_purchase_timestamp"] = x["order_purchase_timestamp"].apply(convert_to_datetime)
     x["order_delivered_customer_date"] = x["order_delivered_customer_date"].apply(convert_to_datetime)
     x["order_estimated_delivery_date"] = x["order_estimated_delivery_date"].apply(convert_to_datetime)
+    
     x["shipping_days"] = x["order_delivered_customer_date"] - x["order_purchase_timestamp"]
     x["shipping_days"] = x["shipping_days"].apply(convert_to_days)
     x["eta_in_days"] = x["order_estimated_delivery_date"] - x["order_purchase_timestamp"]
     x["eta_in_days"] = x["eta_in_days"].apply(convert_to_days)
+    if(x['shipping_days'].iloc[0]<0 or x['eta_in_days'].iloc[0]<0):
+        return render_template('date_condition.html')
     x["early_or_late"] = x["eta_in_days"] - x["shipping_days"]
     x["early_or_late"] = x["early_or_late"].apply(is_early_or_late)
     x = x.drop(['order_delivered_customer_date','order_estimated_delivery_date',
@@ -284,16 +342,3 @@ def function1():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-

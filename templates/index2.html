@@ -1,0 +1,37 @@
+<html>
+<body>
+    <h3>Calculating F1 Score</h3>
+
+<div>
+  <form action="/predict" method="POST">
+    <label for="price">Price</label>
+	<input type="text" id="price" name="price">
+    <br>
+    <label for="freight_value">Freight Value</label>
+	<input type="text" id="freight_value" name="freight_value">
+    <br>
+    <label for="payment_value">Payment Value</label>
+	<input type="text" id="payment_value" name="payment_value">
+    <br>
+    <label for="seller_zip_code_prefix">Seller Zip Code Prefix</label>
+	<input type="date" id="seller_zip_code_prefix" name="seller_zip_code_prefix">
+    <br>
+    <label for="order_delivered_customer_date">Order Delivered Customer Date</label>
+	<input type="date" id="order_delivered_customer_date" name="order_delivered_customer_date">
+    <br>
+    <label for="order_purchase_timestamp">Order Purchase Timestamp</label>
+	<input type="date" id="order_purchase_timestamp" name="order_purchase_timestamp">
+    <br>
+    <label for="order_estimated_delivery_date">Order Estimated Delivery Date</label>
+	<input type="date" id="order_estimated_delivery_date" name="order_estimated_delivery_date">
+    <br>
+    <label for="review_comment_message">Review Comment</label>
+	<input type="text" id="review_comment_message" name="review_comment_message">
+    <br>
+    <label for="y_true">Review Score (0/1)</label>
+	<input type="text" id="y_true" name="y_true">
+    <input type="submit" value="Submit">
+  </form>
+</div>
+</body>
+</html>

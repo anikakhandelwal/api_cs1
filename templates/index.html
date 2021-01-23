@@ -1,37 +1,61 @@
 <html>
 <body>
-    <h3>Predicting Customer Satisfaction forEcommerce Platform</h3>
+    <h3>Predicting Customer Satisfaction for Ecommerce Platform</h3>
 
 <div>
   <form action="/predict" method="POST">
     <label for="price">Enter Price</label>
-	<input type="text" id="price" name="price">
+	<input type="number" id="price" name="price" required min=0>
     <br>
     <label for="freight_value">Enter Freight Value</label>
-	<input type="text" id="freight_value" name="freight_value">
+	<input type="number" id="freight_value" name="freight_value" required min=0>
     <br>
     <label for="payment_value">Enter Payment Value</label>
-	<input type="text" id="payment_value" name="payment_value">
+	<input type="number" id="payment_value" name="payment_value" required min=0>
     <br>
-    <label for="seller_zip_code_prefix">Enter Seller Zip Code Prefix</label>
-	<input type="text" id="seller_zip_code_prefix" name="seller_zip_code_prefix">
+    <label for="seller_zip_code_prefix">Enter Seller Zip Code Prefix (First 5 digits)</label>
+	<input type="text" id="seller_zip_code_prefix" name="seller_zip_code_prefix" required pattern="[0-9]{5}">
     <br>
     <label for="order_delivered_customer_date">Enter Order Delivered Customer Date</label>
 	<input type="date" id="order_delivered_customer_date" name="order_delivered_customer_date">
     <br>
     <label for="order_purchase_timestamp">Enter Order Purchase Timestamp</label>
-	<input type="date" id="order_purchase_timestamp" name="order_purchase_timestamp">
+	<input type="date" id="order_purchase_timestamp" name="order_purchase_timestamp" required>
     <br>
     <label for="order_estimated_delivery_date">Enter Order Estimated Delivery Date</label>
-	<input type="date" id="order_estimated_delivery_date" name="order_estimated_delivery_date">
+	<input type="date" id="order_estimated_delivery_date" name="order_estimated_delivery_date" required>
     <br>
     <label for="review_comment_message">Enter Review Comment Message</label>
 	<input type="text" id="review_comment_message" name="review_comment_message">
-    <input type="submit" value="Submit">
+    <input type="submit" id="check1" value="Submit">
   </form>
   <form action="/upload" method="POST">
 	<input type="submit" value="Upload Multiple Values">
   </form>
 </div>
+  <script>
+
+        var today = new Date();
+var dd = today.getDate();
+
+var mm = today.getMonth()+1; 
+var yyyy = today.getFullYear();
+if(dd<10) 
+{
+    dd='0'+dd;
+} 
+
+if(mm<10) 
+{
+    mm='0'+mm;
+} 
+today = yyyy+'-'+mm+'-'+dd;
+
+document.getElementById("order_delivered_customer_date").setAttribute("max",today);
+document.getElementById("order_purchase_timestamp").setAttribute("max",today);
+
+  </script>
+
+
 </body>
 </html>
